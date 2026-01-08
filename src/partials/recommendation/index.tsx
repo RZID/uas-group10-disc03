@@ -9,19 +9,19 @@ const Recommendation = () => {
   const recommendations = [
     {
       title: "Skalabilitas Horizontal",
-      desc: "Gunakan strategi auto-scaling pada cloud (seperti AWS atau Google Cloud) agar jumlah node Spark dapat bertambah otomatis saat beban transaksi bank melonjak (misalnya pada akhir bulan).",
+      desc: ["Gunakan strategi auto-scaling pada cloud (seperti AWS atau Google Cloud) agar jumlah node Spark dapat bertambah otomatis saat beban transaksi bank melonjak (misalnya pada akhir bulan)."],
     },
     {
       title: "Optimasi Hardware",
-      desc: "Gunakan GPU Acceleration (seperti NVIDIA CUDA) khusus untuk bagian model BiLSTM agar proses inferensi deep learning menjadi 10x lebih cepat dibanding hanya menggunakan CPU.",
+      desc: ["Gunakan GPU Acceleration (seperti NVIDIA CUDA) khusus untuk bagian model BiLSTM agar proses inferensi deep learning menjadi 10x lebih cepat dibanding hanya menggunakan CPU."],
     },
     {
       title: "Penerapan Replikasi Data",
-      desc: "Di dalam Apache Kafka, pastikan jumlah replika minimal 3. Rekomendasi ini bertujuan untuk menjaga Fault Tolerance; jika satu node penyimpan data rusak, data tetap aman di node lain.",
+      desc: ["Dalam perancangan arsitektur sistem informasi skala enterprise ini, mekanisme ketahanan data diimplementasikan menggunakan Apache Kafka dengan konfigurasi Replication Factor (RF) minimal 3. Strategi ini menerapkan arsitektur Leader-Follower, di mana setiap partisi data memiliki satu replika utama (Leader) untuk menangani seluruh transaksi, serta dua replika cadangan (Follower) yang secara aktif menyalin data secara real-time. Pendekatan ini dipilih untuk menciptakan redundansi fisik pada lapisan penyimpanan, sehingga menjamin konsistensi dan ketersediaan data yang tinggi di seluruh klaster server.", "Penerapan jumlah replika ini berfungsi vital sebagai mekanisme Fault Tolerance guna memitigasi risiko Single Point of Failure (SPOF). Dengan konfigurasi tersebut, sistem memiliki toleransi terhadap kegagalan infrastruktur; apabila satu node penyimpan data mengalami kerusakan atau downtime, layanan tetap dapat beroperasi normal tanpa kehilangan data karena beban kerja akan dialihkan secara otomatis ke node replika yang tersedia. Hal ini memastikan kontinuitas layanan (business continuity) dan integritas data tetap terjaga meskipun terjadi gangguan pada salah satu elemen perangkat keras.", "Di dalam Apache Kafka, pastikan jumlah replika minimal 3. Rekomendasi ini bertujuan untuk menjaga Fault Tolerance; jika satu node penyimpan data rusak, data tetap aman di node lain."],
     },
     {
       title: "Monitoring Latensi",
-      desc: "Implementasikan alat monitoring seperti Prometheus atau Grafana untuk memantau waktu perjalanan data dari Kafka ke Spark, guna memastikan tidak ada simpul yang menjadi penghambat (bottleneck).",
+      desc: ["Implementasi pemantauan latensi (latency monitoring) berfokus pada pengukuran presisi waktu yang dibutuhkan data untuk mengalir dari tahap penyangga (buffer) di Apache Kafka hingga masuk ke tahap pemrosesan di Apache Spark. Dalam arsitektur ini, Prometheus berfungsi sebagai pengumpul metrik kinerja backend—seperti consumer lag atau selisih offset pesan—secara berkala, sementara Grafana berperan memvisualisasikan data metrik tersebut ke dalam dashboard grafik yang intuitif. Integrasi kedua alat ini memberikan visibilitas penuh terhadap kesehatan aliran data (data stream), memungkinkan pengamatan granular terhadap seberapa cepat sistem dapat memproses beban kerja yang masuk.", "Tujuan strategis dari pemantauan ini adalah untuk mendeteksi dan mengisolasi simpul penghambat (bottleneck) yang berpotensi menurunkan performa sistem secara keseluruhan. Dengan memantau tren latensi secara real-time, anomali seperti lonjakan waktu tunggu antrean dapat segera diidentifikasi, yang biasanya menandakan ketidakseimbangan antara kecepatan produksi data di Kafka dan kecepatan konsumsi di Spark. Informasi ini sangat krusial sebagai dasar pengambilan keputusan teknis, seperti penambahan sumber daya komputasi (scaling out) atau penyesuaian konfigurasi paralelisme, guna menjaga stabilitas dan throughput sistem agar tetap optimal.", "Implementasikan alat monitoring seperti Prometheus atau Grafana untuk memantau waktu perjalanan data dari Kafka ke Spark, guna memastikan tidak ada simpul yang menjadi penghambat (bottleneck)."],
     },
   ];
 
@@ -96,15 +96,21 @@ const Recommendation = () => {
             <h4 className={classNames("text-lg", "font-semibold", "mb-2")}>
               {item.title}
             </h4>
-            <p
-              className={classNames(
-                "text-sm",
-                "text-gray-300",
-                "leading-relaxed"
-              )}
-            >
-              {item.desc}
-            </p>
+
+            <div className={classNames("flex", "flex-col", "gap-2")}>
+              {item.desc.map((item, j) => (
+                <p
+                  key={`item-${i}-${j}`}
+                  className={classNames(
+                    "text-sm",
+                    "text-gray-300",
+                    "leading-relaxed"
+                  )}
+                >
+                  {item}
+                </p>
+              ))}
+            </div>
           </motion.div>
         ))}
       </motion.div>
