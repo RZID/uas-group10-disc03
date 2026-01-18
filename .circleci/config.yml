@@ -1,0 +1,140 @@
+version: 2.1
+
+executors:
+  node-executor:
+    docker:
+      - image: cimg/node:24.0
+    working_directory: /home/circleci/project
+
+jobs:
+  build:
+    executor: node-executor
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-yarn-deps-{{ checksum "yarn.lock" }}
+
+      - run:
+          name: Install dependencies
+          command: yarn install --frozen-lockfile
+
+      - save_cache:
+          key: v1-yarn-deps-{{ checksum "yarn.lock" }}
+          paths:
+            - node_modules
+            - ~/.cache/yarn
+
+      - run:
+          name: Build project
+          command: yarn build
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist
+
+  deploy:
+    executor: node-executor
+    steps:
+      - attach_workspace:
+          at: /home/circleci/project
+
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:W626Um9048Sg67sSH//pI9wCwngSjBLf/34HL/EiOtI"
+
+      - run:
+          name: Prepare SSH known_hosts
+          command: |
+            mkdir -p ~/.ssh
+            ssh-keyscan -p 2242 159.223.54.215 >> ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+
+      - run:
+          name: Deploy to Web Server
+          command: |
+            set -e
+
+            APP_NAME="cu-disc03-uas"
+            DEPLOY_PATH="/disc03/uas"
+            DOMAIN="college.rzidinc.com"
+
+            SERVER_USER="web"
+            SERVER_IP="159.223.54.215"
+            SSH_PORT="2242"
+
+            TARGET_DIR="/home/web/web/college/disc03/uas"
+
+            SSH_OPTS="-p $SSH_PORT \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o BatchMode=yes \
+              -o ConnectTimeout=10"
+
+            SCP_OPTS="-P $SSH_PORT \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o BatchMode=yes \
+              -o ConnectTimeout=10"
+
+            echo "🎓 Deploying: $APP_NAME"
+            echo "📁 Target: $TARGET_DIR"
+            echo "🌐 URL: http://$DOMAIN$DEPLOY_PATH"
+
+            echo "🧹 Cleaning target directory..."
+            ssh $SSH_OPTS $SERVER_USER@$SERVER_IP \<<'EOF'
+              set -e
+              TARGET_DIR="/home/web/web/college/disc03/uas"
+
+              case "$TARGET_DIR" in
+                /home/*) ;;
+                *) echo "Invalid target dir"; exit 1 ;;
+              esac
+
+              mkdir -p "$TARGET_DIR"
+              cd "$TARGET_DIR"
+
+              for f in * .[^.]*; do
+                [ "$f" = "." ] && continue
+                [ "$f" = ".." ] && continue
+                [ "$f" = ".env" ] && continue
+                [ "$f" = ".gitkeep" ] && continue
+                rm -rf "$f"
+              done
+
+              echo "✅ Directory cleaned"
+            EOF
+
+            echo "📤 Uploading build files..."
+            scp $SCP_OPTS -r dist/* \
+              $SERVER_USER@$SERVER_IP:"$TARGET_DIR/"
+
+            echo "⚙️ Running deploy script inside Docker (Alpine-safe)..."
+            ssh $SSH_OPTS $SERVER_USER@$SERVER_IP "
+              docker exec nginx-college sh /deploy-scripts/deploy-script-vite.sh \
+                '$APP_NAME' \
+                '$DEPLOY_PATH' \
+                '$DOMAIN'
+            "
+
+            echo ""
+            echo "🚀 DEPLOYMENT COMPLETE"
+            echo "👉 http://$DOMAIN$DEPLOY_PATH"
+
+
+workflows:
+  build_and_deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: main
+
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
